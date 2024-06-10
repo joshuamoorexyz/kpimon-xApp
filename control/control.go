@@ -143,13 +143,29 @@ func (c *Control) rmrReplyToSender(params *xapp.RMRParams) (err error) {
 }
 
 func (c *Control) controlLoop() {
+	durationValuesFile, err := os.OpenFile("durationValues.txt", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+	defer durationValuesFile.Close()
+
 	for {
 		msg := <-c.rcChan
 		xapp.Logger.Debug("Received message type: %d", msg.Mtype)
 		log.Printf("Received message type: %d", msg.Mtype)
 		switch msg.Mtype {
 		case 12050:
+			startTime := time.Now()
 			c.handleIndication(msg)
+			duration := time.Since(startTime)
+			milliseconds := duration.Milliseconds()
+			xapp.Logger.Debug("Duration of handleIndication %d", milliseconds)
+			_, err = durationValuesFile.WriteString(strconv.FormatInt(milliseconds, 10) + "\n")
+			if err != nil {
+				fmt.Println("Error:", err)
+				return
+			}
 		case 12011:
 			c.handleSubscriptionResponse(msg)
 		case 12012:
